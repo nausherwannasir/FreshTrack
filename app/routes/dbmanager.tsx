@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React from "react";
 import { json, LoaderFunction, ActionFunction } from "@remix-run/node";
-import { getDb } from "~/drizzle/config.server";
+import { getDbInstance } from "~/drizzle/config.server";
 import { eq, count, inArray, ilike, or, sql } from "drizzle-orm";
 import { toSnakeCase } from "drizzle-orm/casing";
 import DBManager from "~/components/DBManager";
@@ -224,7 +224,7 @@ export const action: ActionFunction = async ({ request }) => {
     const dbUrl = url.searchParams.get("dbUrl") ?? process.env.DATABASE_URL;
     const showProdDb = url.searchParams.get("showProdDb") === "true";
 
-    const db = getDb(dbUrl, showProdDb);
+    const db = getDbInstance();
 
     const action = formData.get("_action") as string;
     const tableName = formData.get("tableName") as string;
@@ -357,7 +357,7 @@ export const loader: LoaderFunction = async ({ request }) => {
     const showProdDb = url.searchParams.get("showProdDb") === "true";
     const searchTerm = url.searchParams.get("search")?.trim() ?? undefined;
 
-    const db = getDb(dbUrl, showProdDb);
+    const db = getDbInstance();
 
     console.log("Starting dbmanager loader...");
 

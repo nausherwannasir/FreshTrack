@@ -274,11 +274,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Index() {
-  const { groceryItems, recipes, notifications, stats, error } = useLoaderData<typeof loader>();
+  const loaderData = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  
+  // Destructure with optional error handling
+  const { groceryItems, recipes, notifications, stats } = loaderData;
+  const error = 'error' in loaderData ? loaderData.error : undefined;
 
   // SPA State Management
   const [activeView, setActiveView] = useState<'dashboard' | 'inventory' | 'recipes' | 'scanner' | 'notifications'>('dashboard');
@@ -307,13 +311,13 @@ export default function Index() {
 
   // Show success/error messages
   useEffect(() => {
-    if (actionData?.success) {
+    if (actionData && 'success' in actionData && actionData.success) {
       toast({
         title: "Success!",
         description: actionData.message,
         duration: 3000,
       });
-    } else if (actionData?.error) {
+    } else if (actionData && 'error' in actionData && actionData.error) {
       toast({
         title: "Error",
         description: actionData.error,
