@@ -1,96 +1,92 @@
 // @ts-nocheck
-import { pgTable, text, serial, integer, boolean, timestamp, json, jsonb, varchar, char, numeric, time, date, pgEnum } from "drizzle-orm/pg-core";
+import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Recipe Database
-export const recipes = pgTable("recipes", {
-  id: serial("id").primaryKey(),
+export const recipes = sqliteTable("recipes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   name: text().notNull(),
   description: text(),
-  ingredients: json().$type<string[]>().notNull(),
-  instructions: json().$type<string[]>().notNull(),
+  ingredients: text({ mode: 'json' }).$type<string[]>().notNull(),
+  instructions: text({ mode: 'json' }).$type<string[]>().notNull(),
   prepTime: integer("prep_time").notNull(),
   cookTime: integer("cook_time").notNull(),
   servings: integer().notNull(),
   difficulty: text().notNull(),
   cuisine: text(),
-  tags: json().$type<string[]>(),
+  tags: text({ mode: 'json' }).$type<string[]>(),
   imageUrl: text("image_url"),
-  nutritionInfo: json("nutrition_info").$type<{
+  nutritionInfo: text("nutrition_info", { mode: 'json' }).$type<{
     calories?: number;
     protein?: number;
     carbs?: number;
     fat?: number;
   }>(),
   source: text(),
-  isPublic: boolean("is_public").default(true),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  isPublic: integer("is_public", { mode: 'boolean' }).default(true),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
 });
 
-// User Saved Recipes
-export const userRecipes = pgTable("user_recipes", {
-  id: serial("id").primaryKey(),
+// User's Saved Recipes (favorites/bookmarks)
+export const savedRecipes = sqliteTable("saved_recipes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id").notNull(),
   recipeId: integer("recipe_id").notNull(),
-  rating: integer(),
-  notes: text(),
-  isFavorite: boolean("is_favorite").default(false),
-  lastMade: date("last_made"),
+  isFavorite: integer("is_favorite", { mode: 'boolean' }).default(false),
+  personalNotes: text("personal_notes"),
+  personalRating: integer("personal_rating"), // 1-5 stars
+  lastCooked: text("last_cooked"),
   timesCooked: integer("times_cooked").default(0),
-  customizations: json().$type<{
-    modifiedIngredients?: string[];
-    modifiedInstructions?: string[];
-    personalNotes?: string;
+  modifications: text({ mode: 'json' }).$type<{
+    ingredientChanges?: string[];
+    instructionChanges?: string[];
+    servingAdjustment?: number;
   }>(),
-  savedAt: timestamp("saved_at").defaultNow().notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
 });
 
-// Recipe Suggestions (AI Generated)
-export const recipeSuggestions = pgTable("recipe_suggestions", {
-  id: serial("id").primaryKey(),
+// Recipe Collections/Meal Plans
+export const recipeCollections = sqliteTable("recipe_collections", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id").notNull(),
+  name: text().notNull(),
+  description: text(),
+  type: text().notNull(), // 'meal_plan', 'favorites', 'custom'
+  isPublic: integer("is_public", { mode: 'boolean' }).default(false),
+  metadata: text({ mode: 'json' }).$type<{
+    weekStart?: string;
+    budget?: number;
+    dietaryRestrictions?: string[];
+  }>(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// Junction table for recipes in collections
+export const recipeCollectionItems = sqliteTable("recipe_collection_items", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  collectionId: integer("collection_id").notNull(),
   recipeId: integer("recipe_id").notNull(),
-  matchingIngredients: json("matching_ingredients").$type<string[]>().notNull(),
-  matchScore: numeric("match_score", { precision: 5, scale: 2 }).notNull(),
-  availableIngredients: integer("available_ingredients").notNull(),
-  totalIngredients: integer("total_ingredients").notNull(),
-  suggestedAt: timestamp("suggested_at").defaultNow().notNull(),
-  isViewed: boolean("is_viewed").default(false),
-  isAccepted: boolean("is_accepted").default(false),
+  position: integer().default(0),
+  scheduledFor: text("scheduled_for"), // For meal planning
+  mealType: text("meal_type"), // 'breakfast', 'lunch', 'dinner', 'snack'
+  servingAdjustment: real("serving_adjustment").default(1.0),
+  notes: text(),
+  createdAt: text("created_at").notNull(),
 });
 
-// Validation schemas
-export const insertRecipeSchema = createInsertSchema(recipes).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true
-});
+// Zod schemas for validation
+export const insertRecipeSchema = createInsertSchema(recipes);
+export const insertSavedRecipeSchema = createInsertSchema(savedRecipes);
+export const insertRecipeCollectionSchema = createInsertSchema(recipeCollections);
+export const insertRecipeCollectionItemSchema = createInsertSchema(recipeCollectionItems);
 
-export const insertUserRecipeSchema = createInsertSchema(userRecipes).omit({
-  id: true,
-  savedAt: true
-});
-
-export const insertRecipeSuggestionSchema = createInsertSchema(recipeSuggestions).omit({
-  id: true,
-  suggestedAt: true
-});
-
-// TypeScript types
 export type Recipe = typeof recipes.$inferSelect;
-export type InsertRecipe = z.infer<typeof insertRecipeSchema>;
-export type UserRecipe = typeof userRecipes.$inferSelect;
-export type InsertUserRecipe = z.infer<typeof insertUserRecipeSchema>;
-export type RecipeSuggestion = typeof recipeSuggestions.$inferSelect;
-export type InsertRecipeSuggestion = z.infer<typeof insertRecipeSuggestionSchema>;
-
-export type RecipeWithUserData = Recipe & {
-  userRating?: number;
-  isFavorite?: boolean;
-  timesCooked?: number;
-  lastMade?: string;
-  matchingIngredients?: string[];
-  matchScore?: number;
-};
+export type NewRecipe = typeof recipes.$inferInsert;
+export type SavedRecipe = typeof savedRecipes.$inferSelect;
+export type NewSavedRecipe = typeof savedRecipes.$inferInsert;
+export type RecipeCollection = typeof recipeCollections.$inferSelect;
+export type NewRecipeCollection = typeof recipeCollections.$inferInsert;
