@@ -1,62 +1,63 @@
 // @ts-nocheck
-import { pgTable, text, serial, integer, boolean, timestamp, json, jsonb, varchar, char, numeric, time, date, pgEnum } from "drizzle-orm/pg-core";
+import { sqliteTable, text, integer, blob, real } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { sql } from "drizzle-orm";
 
 // Grocery Items
-export const groceryItems = pgTable("grocery_items", {
-  id: serial("id").primaryKey(),
+export const groceryItems = sqliteTable("grocery_items", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id").notNull(),
-  name: text().notNull(),
-  category: text().notNull(),
-  expiryDate: date("expiry_date").notNull(),
-  quantity: integer().notNull(),
-  unit: text().notNull(),
-  location: text().notNull(),
+  name: text("name").notNull(),
+  category: text("category").notNull(),
+  expiryDate: text("expiry_date").notNull(), // Using text for dates in SQLite
+  quantity: integer("quantity").notNull(),
+  unit: text("unit").notNull(),
+  location: text("location").notNull(),
   imageUrl: text("image_url"),
-  barcode: text(),
-  addedDate: date("added_date").defaultNow().notNull(),
-  isConsumed: boolean("is_consumed").default(false),
-  aiConfidence: numeric("ai_confidence", { precision: 5, scale: 2 }),
-  metadata: json().$type<{
+  barcode: text("barcode"),
+  addedDate: text("added_date").notNull(),
+  isConsumed: integer("is_consumed", { mode: "boolean" }).default(false),
+  aiConfidence: text("ai_confidence"), // Using text instead of numeric for simplicity
+  metadata: text("metadata", { mode: "json" }).$type<{
     brand?: string;
     nutritionInfo?: any;
     purchasePrice?: number;
     store?: string;
   }>(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 // Expiry Notifications
-export const expiryNotifications = pgTable("expiry_notifications", {
-  id: serial("id").primaryKey(),
+export const expiryNotifications = sqliteTable("expiry_notifications", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id").notNull(),
   groceryItemId: integer("grocery_item_id").notNull(),
-  type: text().notNull(),
-  title: text().notNull(),
-  message: text().notNull(),
-  priority: text().notNull(),
-  isRead: boolean("is_read").default(false),
-  scheduledFor: timestamp("scheduled_for"),
-  sentAt: timestamp("sent_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  type: text("type").notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  priority: text("priority").notNull(),
+  isRead: integer("is_read", { mode: "boolean" }).default(false),
+  scheduledFor: text("scheduled_for"),
+  sentAt: text("sent_at"),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 // AI Scan History
-export const scanHistory = pgTable("scan_history", {
-  id: serial("id").primaryKey(),
+export const scanHistory = sqliteTable("scan_history", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id").notNull(),
   imageUrl: text("image_url"),
-  recognizedItems: json("recognized_items").$type<Array<{
+  recognizedItems: text("recognized_items", { mode: "json" }).$type<Array<{
     name: string;
     confidence: number;
     category: string;
     estimatedExpiry?: string;
   }>>(),
-  scanDate: timestamp("scan_date").defaultNow().notNull(),
+  scanDate: text("scan_date").default(sql`CURRENT_TIMESTAMP`).notNull(),
   processingTime: integer("processing_time"),
-  success: boolean().default(true),
+  success: integer("success", { mode: "boolean" }).default(true),
   errorMessage: text("error_message"),
 });
 
