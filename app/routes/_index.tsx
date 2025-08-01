@@ -203,25 +203,58 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     
     switch (intent) {
       case "add-item": {
+        console.log("[Action] Processing add-item request");
+        console.log("[Action] Form data:", Object.fromEntries(formData.entries()));
+        
+        const name = formData.get("name") as string;
+        const category = formData.get("category") as string;
+        const expiryDate = formData.get("expiryDate") as string;
+        const quantity = parseInt(formData.get("quantity") as string);
+        const unit = formData.get("unit") as string;
+        const location = formData.get("location") as string;
+        
+        console.log("[Action] Parsed values:", { name, category, expiryDate, quantity, unit, location });
+        
+        if (!name || !category || !expiryDate || !unit || !location) {
+          console.error("[Action] Missing required fields");
+          return json({ error: "Missing required fields" }, { status: 400 });
+        }
+        
         const itemData = {
           userId: 1, // Mock user ID
-          name: formData.get("name") as string,
-          category: formData.get("category") as string,
-          expiryDate: formData.get("expiryDate") as string,
-          quantity: parseInt(formData.get("quantity") as string),
-          unit: formData.get("unit") as string,
-          location: formData.get("location") as string,
+          name,
+          category,
+          expiryDate,
+          quantity: quantity || 1,
+          unit,
+          location,
           addedDate: new Date().toISOString().split('T')[0]
         };
         
-        await groceriesStorage.createGroceryItem(itemData);
-        return redirect("/?refresh=" + Date.now());
+        console.log("[Action] Creating item with data:", itemData);
+        
+        try {
+          const result = await groceriesStorage.createGroceryItem(itemData);
+          console.log("[Action] Item created successfully:", result);
+          return redirect("/?refresh=" + Date.now());
+        } catch (error) {
+          console.error("[Action] Failed to create item:", error);
+          return json({ error: "Failed to create item" }, { status: 500 });
+        }
       }
 
       case "scan-item": {
+        console.log("[Action] Processing scan-item request");
         const userId = 1; // Mock user ID
-        await groceriesStorage.scanGroceryImage(userId, "Mock image description");
-        return redirect("/?refresh=" + Date.now());
+        
+        try {
+          const result = await groceriesStorage.scanGroceryImage(userId, "Mock image description");
+          console.log("[Action] Scan completed successfully:", result);
+          return redirect("/?refresh=" + Date.now());
+        } catch (error) {
+          console.error("[Action] Scan failed:", error);
+          return json({ error: "Scan failed" }, { status: 500 });
+        }
       }
 
       case "mark-notification-read": {
@@ -290,6 +323,14 @@ export default function Index() {
   const [isScanning, setIsScanning] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [addItemForm, setAddItemForm] = useState({
+    name: '',
+    category: '',
+    quantity: 1,
+    unit: '',
+    location: '',
+    expiryDate: ''
+  });
 
   const isSubmitting = navigation.state === "submitting";
 
@@ -330,15 +371,96 @@ export default function Index() {
 
   const handleScanItem = async () => {
     setIsScanning(true);
-    // Simulate scanning process
-    setTimeout(() => {
-      setIsScanning(false);
+    try {
+      // Create a form data object to submit the scan request
+      const formData = new FormData();
+      formData.append('intent', 'scan-item');
+      
+      // Submit the scan request to the backend
+      const response = await fetch('/', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (response.ok) {
+        toast({
+          title: "Item Scanned!",
+          description: "Organic Apples detected and added to inventory",
+          duration: 3000,
+        });
+        // Refresh the page to show the new item
+        window.location.reload();
+      } else {
+        throw new Error('Scan failed');
+      }
+    } catch (error) {
       toast({
-        title: "Item Scanned!",
-        description: "Organic Apples detected and added to inventory",
+        title: "Scan Failed",
+        description: "Unable to scan item. Please try again.",
         duration: 3000,
       });
-    }, 3000);
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const handleAddItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate form data
+    if (!addItemForm.name || !addItemForm.category || !addItemForm.unit || !addItemForm.location || !addItemForm.expiryDate) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
+        duration: 3000,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('intent', 'add-item');
+      formData.append('name', addItemForm.name);
+      formData.append('category', addItemForm.category);
+      formData.append('quantity', addItemForm.quantity.toString());
+      formData.append('unit', addItemForm.unit);
+      formData.append('location', addItemForm.location);
+      formData.append('expiryDate', addItemForm.expiryDate);
+
+      const response = await fetch('/', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Item Added!",
+          description: `${addItemForm.name} has been added to your inventory.`,
+          duration: 3000,
+        });
+        setShowAddItemModal(false);
+        setAddItemForm({
+          name: '',
+          category: '',
+          quantity: 1,
+          unit: '',
+          location: '',
+          expiryDate: ''
+        });
+        window.location.reload();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add item');
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to add item",
+        duration: 3000,
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -834,17 +956,14 @@ export default function Index() {
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-gray-900">Ready to Scan</h3>
                     <p className="text-gray-600">Point your camera at a grocery item to get started</p>
-                    <Form method="post">
-                      <input type="hidden" name="intent" value="scan-item" />
-                      <Button 
-                        type="submit"
-                        className="bg-coral-primary hover:bg-coral-dark"
-                        disabled={isScanning}
-                      >
-                        {safeLucideIcon('Camera', 'w-4 h-4 mr-2')}
-                        Start Scanning
-                      </Button>
-                    </Form>
+                    <Button 
+                      onClick={handleScanItem}
+                      className="bg-coral-primary hover:bg-coral-dark"
+                      disabled={isScanning}
+                    >
+                      {safeLucideIcon('Camera', 'w-4 h-4 mr-2')}
+                      Start Scanning
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -960,17 +1079,21 @@ export default function Index() {
               Add a new item to your grocery inventory
             </DialogDescription>
           </DialogHeader>
-          <Form method="post" className="space-y-4">
-            <input type="hidden" name="intent" value="add-item" />
-            
+          <form onSubmit={handleAddItem} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Item Name</Label>
-                <Input id="name" name="name" placeholder="e.g., Organic Bananas" required />
+                <Input 
+                  id="name" 
+                  value={addItemForm.name}
+                  onChange={(e) => setAddItemForm(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="e.g., Organic Bananas" 
+                  required 
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
-                <Select name="category" required>
+                <Select value={addItemForm.category} onValueChange={(value) => setAddItemForm(prev => ({ ...prev, category: value }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
@@ -991,11 +1114,18 @@ export default function Index() {
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="quantity">Quantity</Label>
-                <Input id="quantity" name="quantity" type="number" min="1" defaultValue="1" required />
+                <Input 
+                  id="quantity" 
+                  type="number" 
+                  min="1" 
+                  value={addItemForm.quantity}
+                  onChange={(e) => setAddItemForm(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
+                  required 
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="unit">Unit</Label>
-                <Select name="unit" required>
+                <Select value={addItemForm.unit} onValueChange={(value) => setAddItemForm(prev => ({ ...prev, unit: value }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Unit" />
                   </SelectTrigger>
@@ -1014,7 +1144,7 @@ export default function Index() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="location">Location</Label>
-                <Select name="location" required>
+                <Select value={addItemForm.location} onValueChange={(value) => setAddItemForm(prev => ({ ...prev, location: value }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Location" />
                   </SelectTrigger>
@@ -1031,18 +1161,38 @@ export default function Index() {
 
             <div className="space-y-2">
               <Label htmlFor="expiryDate">Expiry Date</Label>
-              <Input id="expiryDate" name="expiryDate" type="date" required />
+              <Input 
+                id="expiryDate" 
+                type="date" 
+                value={addItemForm.expiryDate}
+                onChange={(e) => setAddItemForm(prev => ({ ...prev, expiryDate: e.target.value }))}
+                required 
+              />
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowAddItemModal(false)}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  setShowAddItemModal(false);
+                  setAddItemForm({
+                    name: '',
+                    category: '',
+                    quantity: 1,
+                    unit: '',
+                    location: '',
+                    expiryDate: ''
+                  });
+                }}
+              >
                 Cancel
               </Button>
               <Button type="submit" className="bg-coral-primary hover:bg-coral-dark" disabled={isSubmitting}>
                 {isSubmitting ? "Adding..." : "Add Item"}
               </Button>
             </DialogFooter>
-          </Form>
+          </form>
         </DialogContent>
       </Dialog>
 
