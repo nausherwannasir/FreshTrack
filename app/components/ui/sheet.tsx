@@ -1,114 +1,138 @@
 import * as React from "react"
-import * as SeparatorPrimitive from "@radix-ui/react-separator"
+import * as SheetPrimitive from "@radix-ui/react-dialog"
 import { cva, type VariantProps } from "class-variance-authority"
+import { X } from "lucide-react"
 
 import { cn } from "~/lib/utils"
 
-const separatorVariants = cva(
-  "shrink-0 transition-all duration-300",
+const Sheet = SheetPrimitive.Root
+
+const SheetTrigger = SheetPrimitive.Trigger
+
+const SheetClose = SheetPrimitive.Close
+
+const SheetPortal = SheetPrimitive.Portal
+
+const SheetOverlay = React.forwardRef<
+  React.ElementRef<typeof SheetPrimitive.Overlay>,
+  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
+>(({ className, ...props }, ref) => (
+  <SheetPrimitive.Overlay
+    className={cn(
+      "fixed inset-0 z-50 bg-background/80 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      className
+    )}
+    {...props}
+    ref={ref}
+  />
+))
+SheetOverlay.displayName = SheetPrimitive.Overlay.displayName
+
+const sheetVariants = cva(
+  "fixed z-50 gap-4 bg-background p-6 shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
   {
     variants: {
-      variant: {
-        default: "bg-border",
-        gradient: "bg-gradient-to-r from-transparent via-border to-transparent",
-        glow: "bg-primary shadow-glow-sm",
-        dashed: "border-t border-dashed border-border bg-transparent",
-        dotted: "border-t border-dotted border-border bg-transparent",
+      side: {
+        top: "inset-x-0 top-0 border-b data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
+        bottom:
+          "inset-x-0 bottom-0 border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+        left: "inset-y-0 left-0 h-full w-3/4 border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
+        right:
+          "inset-y-0 right-0 h-full w-3/4  border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
       },
-      thickness: {
-        thin: "",
-        default: "",
-        thick: "",
-      }
     },
-    compoundVariants: [
-      // Horizontal variants
-      {
-        variant: "default",
-        thickness: "thin",
-        className: "h-px"
-      },
-      {
-        variant: "default", 
-        thickness: "default",
-        className: "h-[1px]"
-      },
-      {
-        variant: "default",
-        thickness: "thick", 
-        className: "h-0.5"
-      },
-      // Gradient, glow, dashed, dotted use same thickness as default
-      {
-        variant: ["gradient", "glow"],
-        thickness: "thin",
-        className: "h-px"
-      },
-      {
-        variant: ["gradient", "glow"],
-        thickness: "default", 
-        className: "h-[1px]"
-      },
-      {
-        variant: ["gradient", "glow"],
-        thickness: "thick",
-        className: "h-0.5"
-      },
-      {
-        variant: ["dashed", "dotted"],
-        thickness: "thin",
-        className: "h-0 border-t"
-      },
-      {
-        variant: ["dashed", "dotted"], 
-        thickness: "default",
-        className: "h-0 border-t"
-      },
-      {
-        variant: ["dashed", "dotted"],
-        thickness: "thick",
-        className: "h-0 border-t-2"
-      }
-    ],
     defaultVariants: {
-      variant: "default",
-      thickness: "default",
+      side: "right",
     },
   }
 )
 
-export interface SeparatorProps
-  extends React.ComponentPropsWithoutRef<typeof SeparatorPrimitive.Root>,
-    VariantProps<typeof separatorVariants> {}
+interface SheetContentProps
+  extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
+    VariantProps<typeof sheetVariants> {}
 
-const Separator = React.forwardRef<
-  React.ElementRef<typeof SeparatorPrimitive.Root>,
-  SeparatorProps
->(
-  (
-    { className, orientation = "horizontal", decorative = true, variant, thickness, ...props },
-    ref
-  ) => (
-    <SeparatorPrimitive.Root
+const SheetContent = React.forwardRef<
+  React.ElementRef<typeof SheetPrimitive.Content>,
+  SheetContentProps
+>(({ side = "right", className, children, ...props }, ref) => (
+  <SheetPortal>
+    <SheetOverlay />
+    <SheetPrimitive.Content
       ref={ref}
-      decorative={decorative}
-      orientation={orientation}
-      className={cn(
-        separatorVariants({ variant, thickness }),
-        orientation === "horizontal" ? "w-full" : "h-full w-[1px]",
-        orientation === "vertical" && variant === "dashed" && "border-l border-dashed border-border bg-transparent h-full w-0",
-        orientation === "vertical" && variant === "dotted" && "border-l border-dotted border-border bg-transparent h-full w-0",
-        className
-      )}
+      className={cn(sheetVariants({ side }), className)}
       {...props}
-    />
-  )
-)
-Separator.displayName = SeparatorPrimitive.Root.displayName
+    >
+      {children}
+      <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
+        <X className="h-4 w-4" />
+        <span className="sr-only">Close</span>
+      </SheetPrimitive.Close>
+    </SheetPrimitive.Content>
+  </SheetPortal>
+))
+SheetContent.displayName = SheetPrimitive.Content.displayName
 
-export { Separator, separatorVariants }
-export function Sheet() { return <div>Sheet</div>; }
-export function SheetContent() { return <div>SheetContent</div>; }
-export function SheetDescription() { return <div>SheetDescription</div>; }
-export function SheetHeader() { return <div>SheetHeader</div>; }
-export function SheetTitle() { return <div>SheetTitle</div>; }
+const SheetHeader = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn(
+      "flex flex-col space-y-2 text-center sm:text-left",
+      className
+    )}
+    {...props}
+  />
+)
+SheetHeader.displayName = "SheetHeader"
+
+const SheetFooter = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn(
+      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+      className
+    )}
+    {...props}
+  />
+)
+SheetFooter.displayName = "SheetFooter"
+
+const SheetTitle = React.forwardRef<
+  React.ElementRef<typeof SheetPrimitive.Title>,
+  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Title>
+>(({ className, ...props }, ref) => (
+  <SheetPrimitive.Title
+    ref={ref}
+    className={cn("text-lg font-semibold text-foreground", className)}
+    {...props}
+  />
+))
+SheetTitle.displayName = SheetPrimitive.Title.displayName
+
+const SheetDescription = React.forwardRef<
+  React.ElementRef<typeof SheetPrimitive.Description>,
+  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Description>
+>(({ className, ...props }, ref) => (
+  <SheetPrimitive.Description
+    ref={ref}
+    className={cn("text-sm text-muted-foreground", className)}
+    {...props}
+  />
+))
+SheetDescription.displayName = SheetPrimitive.Description.displayName
+
+export {
+  Sheet,
+  SheetPortal,
+  SheetOverlay,
+  SheetTrigger,
+  SheetClose,
+  SheetContent,
+  SheetHeader,
+  SheetFooter,
+  SheetTitle,
+  SheetDescription,
+}

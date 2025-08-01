@@ -1,0 +1,13 @@
+node_modules
+build
+dist
+public/build
+*.min.js
+.env*
+.DS_Store
+coverage
+.nyc_output
+*.log
+*.lock
+package-lock.json
+pnpm-lock.yaml

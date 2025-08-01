@@ -274,7 +274,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Index() {
-  const { groceryItems, recipes, notifications, stats, error } = useLoaderData<typeof loader>();
+  const { groceryItems, recipes, notifications, stats } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const { toast } = useToast();
@@ -293,27 +293,15 @@ export default function Index() {
 
   const isSubmitting = navigation.state === "submitting";
 
-  // Show error message if data loading failed
-  useEffect(() => {
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to load some data. Please refresh the page.",
-        duration: 5000,
-        variant: "destructive",
-      });
-    }
-  }, [error, toast]);
-
   // Show success/error messages
   useEffect(() => {
-    if (actionData?.success) {
+    if (actionData && 'success' in actionData && actionData.success) {
       toast({
         title: "Success!",
         description: actionData.message,
         duration: 3000,
       });
-    } else if (actionData?.error) {
+    } else if (actionData && 'error' in actionData && actionData.error) {
       toast({
         title: "Error",
         description: actionData.error,
