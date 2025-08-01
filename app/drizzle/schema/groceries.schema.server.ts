@@ -1,86 +1,100 @@
 // @ts-nocheck
-import { pgTable, text, serial, integer, boolean, timestamp, json, jsonb, varchar, char, numeric, time, date, pgEnum } from "drizzle-orm/pg-core";
+import { sqliteTable, text, integer, real, blob } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Grocery Items
-export const groceryItems = pgTable("grocery_items", {
-  id: serial("id").primaryKey(),
+export const groceryItems = sqliteTable("grocery_items", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id").notNull(),
   name: text().notNull(),
   category: text().notNull(),
-  expiryDate: date("expiry_date").notNull(),
+  expiryDate: text("expiry_date").notNull(), // SQLite doesn't have native date type
   quantity: integer().notNull(),
   unit: text().notNull(),
   location: text().notNull(),
   imageUrl: text("image_url"),
   barcode: text(),
-  addedDate: date("added_date").defaultNow().notNull(),
-  isConsumed: boolean("is_consumed").default(false),
-  aiConfidence: numeric("ai_confidence", { precision: 5, scale: 2 }),
-  metadata: json().$type<{
+  addedDate: text("added_date").notNull(),
+  isConsumed: integer("is_consumed", { mode: 'boolean' }).default(false),
+  aiConfidence: real("ai_confidence"),
+  metadata: text({ mode: 'json' }).$type<{
     brand?: string;
     nutritionInfo?: any;
     purchasePrice?: number;
     store?: string;
   }>(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
 });
 
-// Expiry Notifications
-export const expiryNotifications = pgTable("expiry_notifications", {
-  id: serial("id").primaryKey(),
+// Grocery Categories
+export const groceryCategories = sqliteTable("grocery_categories", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text().notNull(),
+  icon: text(),
+  color: text(),
+  description: text(),
+  createdAt: text("created_at").notNull(),
+});
+
+// Grocery Notifications
+export const groceryNotifications = sqliteTable("grocery_notifications", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id").notNull(),
   groceryItemId: integer("grocery_item_id").notNull(),
-  type: text().notNull(),
+  type: text().notNull(), // 'expiring', 'expired', 'low_stock', 'restocking_suggestion'
   title: text().notNull(),
   message: text().notNull(),
-  priority: text().notNull(),
-  isRead: boolean("is_read").default(false),
-  scheduledFor: timestamp("scheduled_for"),
-  sentAt: timestamp("sent_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  isRead: integer("is_read", { mode: 'boolean' }).default(false),
+  scheduledFor: text("scheduled_for"),
+  metadata: text({ mode: 'json' }).$type<{
+    daysUntilExpiry?: number;
+    suggestedActions?: string[];
+    relatedItems?: number[];
+  }>(),
+  createdAt: text("created_at").notNull(),
 });
 
-// AI Scan History
-export const scanHistory = pgTable("scan_history", {
-  id: serial("id").primaryKey(),
+// Grocery Lists
+export const groceryLists = sqliteTable("grocery_lists", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id").notNull(),
-  imageUrl: text("image_url"),
-  recognizedItems: json("recognized_items").$type<Array<{
-    name: string;
-    confidence: number;
-    category: string;
-    estimatedExpiry?: string;
-  }>>(),
-  scanDate: timestamp("scan_date").defaultNow().notNull(),
-  processingTime: integer("processing_time"),
-  success: boolean().default(true),
-  errorMessage: text("error_message"),
+  name: text().notNull(),
+  description: text(),
+  isActive: integer("is_active", { mode: 'boolean' }).default(true),
+  metadata: text({ mode: 'json' }).$type<{
+    budget?: number;
+    store?: string;
+    plannedDate?: string;
+  }>(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
 });
 
-// Validation schemas
-export const insertGroceryItemSchema = createInsertSchema(groceryItems).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true
+// Grocery List Items
+export const groceryListItems = sqliteTable("grocery_list_items", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  listId: integer("list_id").notNull(),
+  name: text().notNull(),
+  quantity: integer().notNull().default(1),
+  unit: text(),
+  category: text(),
+  isCompleted: integer("is_completed", { mode: 'boolean' }).default(false),
+  estimatedPrice: real("estimated_price"),
+  actualPrice: real("actual_price"),
+  notes: text(),
+  createdAt: text("created_at").notNull(),
+  completedAt: text("completed_at"),
 });
 
-export const insertNotificationSchema = createInsertSchema(expiryNotifications).omit({
-  id: true,
-  createdAt: true
-});
+// Zod schemas for validation
+export const insertGroceryItemSchema = createInsertSchema(groceryItems);
+export const insertGroceryNotificationSchema = createInsertSchema(groceryNotifications);
+export const insertGroceryListSchema = createInsertSchema(groceryLists);
+export const insertGroceryListItemSchema = createInsertSchema(groceryListItems);
 
-export const insertScanHistorySchema = createInsertSchema(scanHistory).omit({
-  id: true,
-  scanDate: true
-});
-
-// TypeScript types
 export type GroceryItem = typeof groceryItems.$inferSelect;
-export type InsertGroceryItem = z.infer<typeof insertGroceryItemSchema>;
-export type ExpiryNotification = typeof expiryNotifications.$inferSelect;
-export type InsertNotification = z.infer<typeof insertNotificationSchema>;
-export type ScanHistory = typeof scanHistory.$inferSelect;
-export type InsertScanHistory = z.infer<typeof insertScanHistorySchema>;
+export type NewGroceryItem = typeof groceryItems.$inferInsert;
+export type GroceryNotification = typeof groceryNotifications.$inferSelect;
+export type NewGroceryNotification = typeof groceryNotifications.$inferInsert;
