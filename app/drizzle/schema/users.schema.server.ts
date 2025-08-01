@@ -1,26 +1,27 @@
 // @ts-nocheck
-import { pgTable, text, serial, integer, boolean, timestamp, json, jsonb, varchar, char, numeric, time, date, pgEnum } from "drizzle-orm/pg-core";
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { sql } from "drizzle-orm";
 
 // MANDATORY CORE TABLES - Always include these
-export const usersTable = pgTable("users", {
-  id: serial("id").primaryKey(),
-  email: text().notNull().unique(),
-  password: text().notNull(),
+export const usersTable = sqliteTable("users", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  email: text("email").notNull().unique(),
+  password: text("password").notNull(),
   displayName: text("display_name"),
-  avatar: text(),
-  preferences: json().$type<{
+  avatar: text("avatar"),
+  preferences: text("preferences", { mode: "json" }).$type<{
     notifications: boolean;
     expiryAlerts: boolean;
     alertDays: number;
     theme: 'light' | 'dark';
   }>(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const stripeCustomersTable = pgTable("stripe_customers", {
+export const stripeCustomersTable = sqliteTable("stripe_customers", {
   userId: integer("user_id").primaryKey(),
   customerId: text("customer_id").notNull(),
 });

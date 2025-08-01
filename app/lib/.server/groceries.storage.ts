@@ -119,10 +119,11 @@ export class GroceriesStorage implements IGroceriesStorage {
 
   async createGroceryItem(itemData: InsertGroceryItem): Promise<GroceryItem> {
     try {
+      const now = new Date().toISOString();
       const result = await this.client.insert(groceryItems).values({
         ...itemData,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: now,
+        updatedAt: now
       }).returning();
       
       const item = result[0];
@@ -186,7 +187,7 @@ export class GroceriesStorage implements IGroceriesStorage {
     try {
       const result = await this.client
         .update(groceryItems)
-        .set({ ...updates, updatedAt: new Date() })
+        .set({ ...updates, updatedAt: new Date().toISOString() })
         .where(eq(groceryItems.id, id))
         .returning();
 
@@ -201,10 +202,10 @@ export class GroceriesStorage implements IGroceriesStorage {
     try {
       const result = await this.client
         .update(groceryItems)
-        .set({ isConsumed: true, updatedAt: new Date() })
+        .set({ isConsumed: true, updatedAt: new Date().toISOString() })
         .where(eq(groceryItems.id, id));
 
-      return result.rowCount > 0;
+      return result.changes > 0;
     } catch (error) {
       console.error("[GroceriesStorage] Failed to delete grocery item:", error);
       return false;
@@ -289,7 +290,7 @@ export class GroceriesStorage implements IGroceriesStorage {
     try {
       const result = await this.client.insert(expiryNotifications).values({
         ...notificationData,
-        createdAt: new Date()
+        createdAt: new Date().toISOString()
       }).returning();
       
       return this.convertDates(result[0]);
@@ -330,7 +331,7 @@ export class GroceriesStorage implements IGroceriesStorage {
         .set({ isRead: true })
         .where(eq(expiryNotifications.id, id));
 
-      return result.rowCount > 0;
+      return result.changes > 0;
     } catch (error) {
       console.error("[GroceriesStorage] Failed to mark notification as read:", error);
       return false;
@@ -372,7 +373,7 @@ export class GroceriesStorage implements IGroceriesStorage {
             title: daysUntilExpiry <= 0 ? 'Item Expired' : 'Item Expiring Soon',
             message,
             priority: daysUntilExpiry <= 0 ? 'high' : daysUntilExpiry <= 1 ? 'high' : 'medium',
-            scheduledFor: new Date()
+            scheduledFor: new Date().toISOString()
           });
         }
       }
