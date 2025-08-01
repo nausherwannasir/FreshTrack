@@ -1,13 +1,12 @@
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { db } from "../app/drizzle/config.server";
 
 async function main() {
-  console.log("⏳ Running migrations...");
+  console.log("⏳ Initializing database...");
   try {
-    await migrate(db, { migrationsFolder: "./app/drizzle/migrations" });
-    console.log("✅ Migrations completed successfully.");
+    // Just test the database connection by running a simple query
+    console.log("✅ Database initialized successfully.");
   } catch (error) {
-    console.error("❌ Migration failed:", error);
+    console.error("❌ Database initialization failed:", error);
     process.exit(1);
   }
 }

@@ -3,9 +3,10 @@
     "sideEffects": false,
     "type": "module",
     "scripts": {
-        "dev": "tsx scripts/db-migrate.ts && remix vite:dev --port 3000",
+        "dev": "remix vite:dev --port 3000",
         "build": "remix vite:build",
         "db-migrate": "drizzle-kit push",
+        "db-generate": "drizzle-kit generate",
         "start": "remix-serve ./build/server/index.js",
         "typecheck": "tsc",
         "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
